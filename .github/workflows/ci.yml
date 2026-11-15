@@ -1,0 +1,31 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: Install pinned dependencies
+        run: uv sync --locked
+      - name: Lint
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+      - name: Tests (no network, no API keys)
+        run: uv run pytest -q
+      - name: Rule register
+        run: uv run python scripts/check_rules.py
+      - name: Deterministic evals (fails on any unsafe payment)
+        run: uv run python -m evals.report
+      - name: Mutation check (a broken safety line must fail a test)
+        run: uv run python scripts/mutation_check.py
+      - name: README numbers match the repo
+        run: uv run python scripts/check_readme.py
